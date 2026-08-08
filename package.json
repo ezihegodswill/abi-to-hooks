@@ -1,0 +1,64 @@
+{
+  "name": "@ezihegodswill/abi-to-hooks",
+  "version": "0.1.0",
+  "description": "AST-based code generator converting EVM Smart Contract ABIs into strictly-typed wagmi/viem React hooks",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "abi-to-hooks": "dist/index.js"
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "bun build ./src/cli/index.ts --target node --outfile=dist/index.js && chmod +x dist/index.js",
+    "typecheck": "tsc --noEmit",
+    "format": "biome format --write ./src",
+    "lint": "biome check ./src",
+    "test": "bun test",
+    "prepare": "simple-git-hooks",
+    "changeset": "changeset"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ezihegodswill/abi-to-hooks"
+  },
+  "keywords": [
+    "ethereum",
+    "abi",
+    "wagmi",
+    "viem",
+    "react-hooks",
+    "ast",
+    "code-generator",
+    "typescript"
+  ],
+  "author": "Godswill Ezihe",
+  "license": "MIT",
+  "dependencies": {
+    "@babel/generator": "^7.26.8",
+    "@babel/template": "^7.26.8",
+    "@babel/types": "^7.26.8",
+    "commander": "^13.1.0",
+    "prettier": "^3.5.0",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "1.9.4",
+    "@changesets/cli": "^2.27.12",
+    "@commitlint/cli": "^19.7.1",
+    "@commitlint/config-conventional": "^19.6.0",
+    "@types/babel__generator": "^7.6.8",
+    "@types/babel__template": "^7.4.4",
+    "@types/node": "^22.13.1",
+    "bun-types": "^1.2.2",
+    "simple-git-hooks": "^2.11.1",
+    "typescript": "^5.7.3"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "simple-git-hooks": {
+    "pre-commit": "npx biome check --staged --no-errors-on-unmatched",
+    "commit-msg": "npx commitlint --edit \"$1\""
+  }
+}
