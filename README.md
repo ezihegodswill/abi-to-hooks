@@ -1,6 +1,6 @@
 # @ezihegodswill/abi-to-hooks
 
-> Enterprise AST-based CLI code generator converting EVM Smart Contract ABIs into strictly-typed `wagmi` / `viem` React hooks.
+> AST-based CLI code generator converting EVM Smart Contract ABIs into strictly-typed `wagmi` / `viem` React hooks.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue.svg)](https://www.typescriptlang.org/)
@@ -38,13 +38,13 @@ abi-to-hooks ./abis/ERC20.json -o ./src/hooks -n ERC20
 
 ## ⚙️ CLI Options & Flags
 
-| Flag | Full Name | Description | Default |
-| :--- | :--- | :--- | :--- |
-| `<abi-path>` | Positional | Path to raw ABI JSON file or framework artifact (`.json`) | *Required* |
-| `-o` | `--output <path>` | Target output directory or file path | `./generated` |
-| `-n` | `--name <name>` | Custom smart contract display name | Filename |
-| `--no-config` | `--no-config` | Disable auto-generating `config.ts` wagmi client stub | `false` |
-| `-h` | `--help` | Display CLI usage guide | — |
+| Flag          | Full Name         | Description                                               | Default       |
+| :------------ | :---------------- | :-------------------------------------------------------- | :------------ |
+| `<abi-path>`  | Positional        | Path to raw ABI JSON file or framework artifact (`.json`) | _Required_    |
+| `-o`          | `--output <path>` | Target output directory or file path                      | `./generated` |
+| `-n`          | `--name <name>`   | Custom smart contract display name                        | Filename      |
+| `--no-config` | `--no-config`     | Disable auto-generating `config.ts` wagmi client stub     | `false`       |
+| `-h`          | `--help`          | Display CLI usage guide                                   | —             |
 
 ---
 

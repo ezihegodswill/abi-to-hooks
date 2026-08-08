@@ -9,7 +9,7 @@ const program = new Command();
 program
   .name('abi-to-hooks')
   .description(
-    'Enterprise CLI code generator converting Smart Contract ABIs into strictly-typed wagmi React hooks',
+    'CLI code generator converting Smart Contract ABIs into strictly-typed wagmi React hooks',
   )
   .version('0.1.0')
   .argument('<abi-path>', 'Path to JSON ABI file or artifact payload')
