@@ -45,12 +45,13 @@ describe("Phase 3: AST Generation", () => {
     const outputCode = generate(astFile).code;
 
     expect(outputCode).toContain(
-      "import { useReadContract, useWriteContract, useWatchContractEvent",
+      "import { useReadContract, useWriteContract, useSimulateContract, useWatchContractEvent",
     );
     expect(outputCode).toContain("export const erc20Abi = [");
     expect(outputCode).toContain("as const;");
     expect(outputCode).toContain("export function useReadERC20BalanceOf");
     expect(outputCode).toContain("export function useWriteERC20Transfer");
+    expect(outputCode).toContain("export function useSimulateERC20Transfer");
     expect(outputCode).toContain("export function useWatchERC20Transfer");
 
     // Verify zero 'as any' exists in generated code output

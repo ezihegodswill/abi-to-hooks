@@ -5,7 +5,7 @@ import * as t from "@babel/types";
  * AST statement for wagmi React imports
  */
 export const importsAst = template.statement.ast(
-  `import { useReadContract, useWriteContract, useWatchContractEvent, type UseReadContractParameters, type UseWriteContractParameters, type UseWatchContractEventParameters } from 'wagmi';`,
+  `import { useReadContract, useWriteContract, useSimulateContract, useWatchContractEvent, type UseReadContractParameters, type UseWriteContractParameters, type UseSimulateContractParameters, type UseWatchContractEventParameters } from 'wagmi';`,
   { plugins: ["typescript"] },
 );
 
