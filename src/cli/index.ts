@@ -3,7 +3,7 @@
 import { Command } from "commander";
 import packageJson from "../../package.json";
 import { ABIParseError } from "../core/ingestion";
-import { generateHooksFromFile } from "./generator";
+import { generateHooksFromFile, watchAbiPath } from "./generator";
 
 const program = new Command();
 
@@ -25,8 +25,15 @@ program
     "-n, --name <contractName>",
     "Custom contract display name (for single file generation)",
   )
+  .option(
+    "-w, --watch",
+    "Watch input ABI file or directory for changes and regenerate automatically",
+  )
   .action(
-    async (abiPath: string, options: { output?: string; name?: string }) => {
+    async (
+      abiPath: string,
+      options: { output?: string; name?: string; watch?: boolean },
+    ) => {
       try {
         console.log(
           `\n\x1b[36m[abi-to-hooks]\x1b[0m Ingesting ABI from ${abiPath}...`,
@@ -47,6 +54,24 @@ program
           );
         }
         console.log("\n\x1b[32mDone!\x1b[0m\n");
+
+        if (options.watch) {
+          console.log(
+            `\x1b[33m[watch]\x1b[0m Watching for ABI changes in ${abiPath}... (Press Ctrl+C to exit)\n`,
+          );
+          watchAbiPath(
+            {
+              abiPath,
+              outputPath: options.output,
+              contractName: options.name,
+            },
+            (res) => {
+              console.log(
+                `\x1b[32m✔ [watch]\x1b[0m Regenerated hooks at: \x1b[1m${res.outputPath}\x1b[0m`,
+              );
+            },
+          );
+        }
       } catch (err) {
         if (err instanceof ABIParseError) {
           console.error(
