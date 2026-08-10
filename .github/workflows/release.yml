@@ -30,7 +30,7 @@ jobs:
         with:
           bun-version: latest
 
-      - name: Setup Node.js (for NPM Registry Auth)
+      - name: Setup Node.js (for NPM Registry OIDC Auth)
         uses: actions/setup-node@v4
         with:
           node-version: 22
