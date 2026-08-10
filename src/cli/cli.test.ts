@@ -120,4 +120,28 @@ describe("Phase 4: CLI Generator Pipeline Integration", () => {
     expect(indexContent).toContain("export * from './ERC20';");
     expect(indexContent).toContain("export * from './Vault';");
   });
+
+  test("should skip generation when content hash is unchanged and regenerate when force is true", async () => {
+    const outputDir = path.join(testDir, "output_cache");
+    const res1 = await generateHooksFromFile({
+      abiPath: sampleAbiPath,
+      outputPath: outputDir,
+    });
+    expect(res1.skipped).toBe(false);
+
+    // Second run with same ABI content should skip
+    const res2 = await generateHooksFromFile({
+      abiPath: sampleAbiPath,
+      outputPath: outputDir,
+    });
+    expect(res2.skipped).toBe(true);
+
+    // Third run with force: true should force regeneration
+    const res3 = await generateHooksFromFile({
+      abiPath: sampleAbiPath,
+      outputPath: outputDir,
+      force: true,
+    });
+    expect(res3.skipped).toBe(false);
+  });
 });
