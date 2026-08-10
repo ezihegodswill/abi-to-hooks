@@ -1,7 +1,7 @@
 /**
  * Standard EVM State Mutability types according to Solidity spec
  */
-export type StateMutability = 'pure' | 'view' | 'nonpayable' | 'payable';
+export type StateMutability = "pure" | "view" | "nonpayable" | "payable";
 
 /**
  * ABI Parameter structure representing function inputs, outputs, and event parameters.
@@ -19,7 +19,7 @@ export interface ABIParameter {
  * Validated EVM ABI Function definition
  */
 export interface ABIFunction {
-  type: 'function';
+  type: "function";
   name: string;
   inputs: ABIParameter[];
   outputs: ABIParameter[];
@@ -30,7 +30,7 @@ export interface ABIFunction {
  * Validated EVM ABI Event definition
  */
 export interface ABIEvent {
-  type: 'event';
+  type: "event";
   name: string;
   inputs: ABIParameter[];
   anonymous?: boolean;
@@ -40,7 +40,7 @@ export interface ABIEvent {
  * Validated EVM ABI Custom Error definition
  */
 export interface ABIError {
-  type: 'error';
+  type: "error";
   name: string;
   inputs: ABIParameter[];
 }
@@ -49,31 +49,37 @@ export interface ABIError {
  * Validated EVM ABI Constructor definition
  */
 export interface ABIConstructor {
-  type: 'constructor';
+  type: "constructor";
   inputs: ABIParameter[];
-  stateMutability: Extract<StateMutability, 'nonpayable' | 'payable'>;
+  stateMutability: Extract<StateMutability, "nonpayable" | "payable">;
 }
 
 /**
  * Validated EVM Fallback function definition
  */
 export interface ABIFallback {
-  type: 'fallback';
-  stateMutability?: Extract<StateMutability, 'nonpayable' | 'payable'>;
+  type: "fallback";
+  stateMutability?: Extract<StateMutability, "nonpayable" | "payable">;
 }
 
 /**
  * Validated EVM Receive function definition
  */
 export interface ABIReceive {
-  type: 'receive';
-  stateMutability: 'payable';
+  type: "receive";
+  stateMutability: "payable";
 }
 
 /**
  * Union of all valid top-level Smart Contract ABI items
  */
-export type ABIItem = ABIFunction | ABIEvent | ABIError | ABIConstructor | ABIFallback | ABIReceive;
+export type ABIItem =
+  | ABIFunction
+  | ABIEvent
+  | ABIError
+  | ABIConstructor
+  | ABIFallback
+  | ABIReceive;
 
 /**
  * Fully sanitized and type-checked Smart Contract ABI

@@ -4,10 +4,20 @@ import type {
   ABIFunction,
   ABIParameter,
   SmartContractABI,
-} from '../ingestion/types';
-import { sanitizeIdentifier, sanitizeParamName, typeToSuffix } from './sanitizer';
-import { mapEVMToTSType } from './type-mapper';
-import type { IRContract, IRError, IREvent, IRFunction, IRParameter } from './types';
+} from "../ingestion/types";
+import {
+  sanitizeIdentifier,
+  sanitizeParamName,
+  typeToSuffix,
+} from "./sanitizer";
+import { mapEVMToTSType } from "./type-mapper";
+import type {
+  IRContract,
+  IRError,
+  IREvent,
+  IRFunction,
+  IRParameter,
+} from "./types";
 
 /**
  * Normalizes an array of ABI parameters into IRParameters with mapped TypeScript types and safe names.
@@ -16,7 +26,9 @@ export function buildIRParameters(params: ABIParameter[]): IRParameter[] {
   return params.map((param, index) => {
     const safeName = sanitizeParamName(param.name, index);
     const tsType = mapEVMToTSType(param);
-    const components = param.components ? buildIRParameters(param.components) : undefined;
+    const components = param.components
+      ? buildIRParameters(param.components)
+      : undefined;
 
     return {
       originalName: param.name,
@@ -46,14 +58,18 @@ function processFunctions(functions: ABIFunction[]): IRFunction[] {
     let safeName = sanitizeIdentifier(fn.name);
 
     if (isOverloaded) {
-      const paramSuffixes = fn.inputs.map((input) => typeToSuffix(input.type)).join('');
-      safeName = `${safeName}${paramSuffixes || 'Void'}`;
+      const paramSuffixes = fn.inputs
+        .map((input) => typeToSuffix(input.type))
+        .join("");
+      safeName = `${safeName}${paramSuffixes || "Void"}`;
     }
 
     const inputs = buildIRParameters(fn.inputs);
     const outputs = buildIRParameters(fn.outputs);
-    const isRead = fn.stateMutability === 'view' || fn.stateMutability === 'pure';
-    const isWrite = fn.stateMutability === 'nonpayable' || fn.stateMutability === 'payable';
+    const isRead =
+      fn.stateMutability === "view" || fn.stateMutability === "pure";
+    const isWrite =
+      fn.stateMutability === "nonpayable" || fn.stateMutability === "payable";
 
     return {
       originalName: fn.name,
@@ -73,17 +89,20 @@ function processFunctions(functions: ABIFunction[]): IRFunction[] {
  * @param abi Ingested and validated Smart Contract ABI
  * @param contractName Display name of the smart contract (e.g. "ERC20")
  */
-export function buildIR(abi: SmartContractABI, contractName = 'Contract'): IRContract {
+export function buildIR(
+  abi: SmartContractABI,
+  contractName = "Contract",
+): IRContract {
   const rawFunctions: ABIFunction[] = [];
   const rawEvents: ABIEvent[] = [];
   const rawErrors: ABIError[] = [];
 
   for (const item of abi) {
-    if (item.type === 'function') {
+    if (item.type === "function") {
       rawFunctions.push(item);
-    } else if (item.type === 'event') {
+    } else if (item.type === "event") {
       rawEvents.push(item);
-    } else if (item.type === 'error') {
+    } else if (item.type === "error") {
       rawErrors.push(item);
     }
   }

@@ -1,4 +1,4 @@
-import type { StateMutability } from '../ingestion/types';
+import type { StateMutability } from "../ingestion/types";
 
 /**
  * Normalized parameter in the Intermediate Representation

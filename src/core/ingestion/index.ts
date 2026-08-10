@@ -1,8 +1,8 @@
-import { ABIEnvelopeSchema } from './schema';
-import type { SmartContractABI } from './types';
+import { ABIEnvelopeSchema } from "./schema";
+import type { SmartContractABI } from "./types";
 
-export * from './types';
-export * from './schema';
+export * from "./types";
+export * from "./schema";
 
 export class ABIParseError extends Error {
   constructor(
@@ -10,7 +10,7 @@ export class ABIParseError extends Error {
     public readonly rawError?: unknown,
   ) {
     super(message);
-    this.name = 'ABIParseError';
+    this.name = "ABIParseError";
   }
 }
 
@@ -22,9 +22,9 @@ export class ABIParseError extends Error {
  * @throws ABIParseError on structural validation failure
  */
 export function parseABI(input: unknown): SmartContractABI {
-  if (!input || (typeof input !== 'object' && !Array.isArray(input))) {
+  if (!input || (typeof input !== "object" && !Array.isArray(input))) {
     throw new ABIParseError(
-      'Invalid ABI payload: Input must be a non-null JSON array or object artifact.',
+      "Invalid ABI payload: Input must be a non-null JSON array or object artifact.",
     );
   }
 
@@ -32,9 +32,12 @@ export function parseABI(input: unknown): SmartContractABI {
 
   if (!result.success) {
     const formattedError = result.error.issues
-      .map((issue) => `[${issue.path.join('.')}]: ${issue.message}`)
-      .join('; ');
-    throw new ABIParseError(`ABI Validation Failed: ${formattedError}`, result.error);
+      .map((issue) => `[${issue.path.join(".")}]: ${issue.message}`)
+      .join("; ");
+    throw new ABIParseError(
+      `ABI Validation Failed: ${formattedError}`,
+      result.error,
+    );
   }
 
   return result.data;
