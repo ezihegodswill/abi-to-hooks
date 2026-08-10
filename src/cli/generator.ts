@@ -1,7 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
 import generate from "@babel/generator";
-import prettier from "prettier";
 import {
   generateContractFileAst,
   generateIndexFileAst,
@@ -22,19 +21,10 @@ export interface GenerateResult {
 }
 
 /**
- * Formats TypeScript code string with Prettier, falling back cleanly to raw code on error.
+ * Formats generated TypeScript code string cleanly.
  */
-async function formatTypeScriptCode(rawCode: string): Promise<string> {
-  try {
-    return await prettier.format(rawCode, {
-      parser: "typescript",
-      singleQuote: true,
-      trailingComma: "es5",
-      printWidth: 100,
-    });
-  } catch {
-    return rawCode;
-  }
+function formatTypeScriptCode(rawCode: string): string {
+  return `${rawCode.trim()}\n`;
 }
 
 /**
