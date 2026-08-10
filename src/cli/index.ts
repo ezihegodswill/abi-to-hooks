@@ -3,7 +3,7 @@
 import { Command } from "commander";
 import packageJson from "../../package.json";
 import { ABIParseError } from "../core/ingestion";
-import { generateHooksFromFile } from "./generator";
+import { generateHooksFromFile, runInteractiveWizard } from "./generator";
 
 const program = new Command();
 
@@ -14,7 +14,7 @@ program
   )
   .version(packageJson.version)
   .argument(
-    "<abi-path>",
+    "[abi-path]",
     "Path to JSON ABI file, artifact payload, or directory of ABIs",
   )
   .option(
@@ -25,17 +25,35 @@ program
     "-n, --name <contractName>",
     "Custom contract display name (for single file generation)",
   )
+  .option(
+    "-i, --interactive",
+    "Launch interactive prompt wizard to configure options",
+  )
   .action(
-    async (abiPath: string, options: { output?: string; name?: string }) => {
+    async (
+      abiPathInput: string | undefined,
+      options: { output?: string; name?: string; interactive?: boolean },
+    ) => {
       try {
+        let abiPath = abiPathInput;
+        let outputPath = options.output;
+        let contractName = options.name;
+
+        if (options.interactive || !abiPath) {
+          const wizardOptions = await runInteractiveWizard(abiPath);
+          abiPath = wizardOptions.abiPath;
+          outputPath = wizardOptions.outputPath || outputPath;
+          contractName = wizardOptions.contractName || contractName;
+        }
+
         console.log(
           `\n\x1b[36m[abi-to-hooks]\x1b[0m Ingesting ABI from ${abiPath}...`,
         );
 
         const result = await generateHooksFromFile({
           abiPath,
-          outputPath: options.output,
-          contractName: options.name,
+          outputPath,
+          contractName,
         });
 
         console.log(

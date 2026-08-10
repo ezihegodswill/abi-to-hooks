@@ -173,3 +173,67 @@ export async function generateHooksFromFile(
     code,
   };
 }
+
+/**
+ * Runs an interactive terminal prompt wizard using the prompts package.
+ */
+export async function runInteractiveWizard(
+  initialAbiPath?: string,
+): Promise<GenerateOptions> {
+  const prompts = (await import("prompts")).default;
+
+  const response = await prompts(
+    [
+      {
+        type: initialAbiPath ? null : "text",
+        name: "abiPath",
+        message: "Enter path to JSON ABI file or directory of ABIs:",
+        validate: (val: string) =>
+          val && val.trim().length > 0
+            ? true
+            : "ABI file or directory path is required",
+      },
+      {
+        type: "text",
+        name: "outputPath",
+        message: "Enter target output path (defaults to ./generated):",
+        initial: "./generated",
+      },
+      {
+        type: (_prev: unknown, values: { abiPath?: string }) => {
+          const targetPath = initialAbiPath || values.abiPath;
+          if (targetPath) {
+            try {
+              const fullPath = path.resolve(process.cwd(), targetPath);
+              if (fs.existsSync(fullPath) && fs.statSync(fullPath).isFile()) {
+                return "text";
+              }
+            } catch {
+              // fallback
+            }
+          }
+          return null;
+        },
+        name: "contractName",
+        message: "Enter custom contract display name (optional):",
+      },
+    ],
+    {
+      onCancel: () => {
+        console.log("\n\x1b[33mInteractive prompt cancelled.\x1b[0m\n");
+        process.exit(0);
+      },
+    },
+  );
+
+  const finalAbiPath = initialAbiPath || response.abiPath;
+  if (!finalAbiPath) {
+    throw new Error("ABI path is required to generate contract hooks.");
+  }
+
+  return {
+    abiPath: finalAbiPath,
+    outputPath: response.outputPath || "./generated",
+    contractName: response.contractName,
+  };
+}
