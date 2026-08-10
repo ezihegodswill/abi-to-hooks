@@ -1,17 +1,21 @@
-import * as t from '@babel/types';
-import type { IRContract } from '../ir/types';
-import { generateReadHookAst, generateWriteHookAst } from './hook-generator';
-import { buildAbiExportAst, importsAst } from './templates';
+import * as t from "@babel/types";
+import type { IRContract } from "../ir/types";
+import {
+  generateEventHookAst,
+  generateReadHookAst,
+  generateWriteHookAst,
+} from "./hook-generator";
+import { buildAbiExportAst, importsAst } from "./templates";
 
-export * from './hook-generator';
-export * from './templates';
-export * from './type-builder';
+export * from "./hook-generator";
+export * from "./templates";
+export * from "./type-builder";
 
 /**
  * Derives a clean camelCase variable name for the exported ABI constant (e.g., "ERC20" -> "erc20Abi").
  */
 export function getAbiVarName(contractName: string): string {
-  if (!contractName) return 'contractAbi';
+  if (!contractName) return "contractAbi";
   const clean = contractName.trim();
   if (/^ERC\d+/i.test(clean)) {
     return `${clean.toLowerCase()}Abi`;
@@ -26,7 +30,10 @@ export function getAbiVarName(contractName: string): string {
  * @param rawAbi Sanitized ABI payload to emit as constant
  * @returns Complete, valid Babel t.File AST node
  */
-export function generateContractFileAst(ir: IRContract, rawAbi: unknown): t.File {
+export function generateContractFileAst(
+  ir: IRContract,
+  rawAbi: unknown,
+): t.File {
   const bodyNodes: t.Statement[] = [];
 
   // 1. Add wagmi imports
@@ -50,6 +57,25 @@ export function generateContractFileAst(ir: IRContract, rawAbi: unknown): t.File
     bodyNodes.push(hookAst);
   }
 
-  const program = t.program(bodyNodes, [], 'module');
+  // 5. Generate Event Hooks
+  for (const evt of ir.events) {
+    const hookAst = generateEventHookAst(ir.name, evt, abiVarName);
+    bodyNodes.push(hookAst);
+  }
+
+  const program = t.program(bodyNodes, [], "module");
+  return t.file(program);
+}
+
+/**
+ * Assembles a Babel AST Program (t.File) for an index.ts file re-exporting modules.
+ *
+ * @param moduleNames List of module basenames (e.g. ['ERC20', 'Vault'])
+ */
+export function generateIndexFileAst(moduleNames: string[]): t.File {
+  const bodyNodes: t.Statement[] = moduleNames.map((name) =>
+    t.exportAllDeclaration(t.stringLiteral(`./${name}`)),
+  );
+  const program = t.program(bodyNodes, [], "module");
   return t.file(program);
 }
