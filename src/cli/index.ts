@@ -25,18 +25,33 @@ program
     "-n, --name <contractName>",
     "Custom contract display name (for single file generation)",
   )
+  .option(
+    "-s, --stdout",
+    "Print generated TypeScript code directly to stdout instead of writing files",
+  )
   .action(
-    async (abiPath: string, options: { output?: string; name?: string }) => {
+    async (
+      abiPath: string,
+      options: { output?: string; name?: string; stdout?: boolean },
+    ) => {
       try {
-        console.log(
-          `\n\x1b[36m[abi-to-hooks]\x1b[0m Ingesting ABI from ${abiPath}...`,
-        );
+        if (!options.stdout) {
+          console.log(
+            `\n\x1b[36m[abi-to-hooks]\x1b[0m Ingesting ABI from ${abiPath}...`,
+          );
+        }
 
         const result = await generateHooksFromFile({
           abiPath,
           outputPath: options.output,
           contractName: options.name,
+          stdout: options.stdout,
         });
+
+        if (options.stdout) {
+          process.stdout.write(result.code);
+          return;
+        }
 
         console.log(
           `\x1b[32m✔\x1b[0m Successfully generated React hooks at: \x1b[1m${result.outputPath}\x1b[0m`,

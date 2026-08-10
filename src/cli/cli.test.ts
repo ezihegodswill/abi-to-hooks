@@ -120,4 +120,15 @@ describe("Phase 4: CLI Generator Pipeline Integration", () => {
     expect(indexContent).toContain("export * from './ERC20';");
     expect(indexContent).toContain("export * from './Vault';");
   });
+
+  test("should output generated code without writing files when stdout mode is enabled", async () => {
+    const result = await generateHooksFromFile({
+      abiPath: sampleAbiPath,
+      stdout: true,
+    });
+
+    expect(result.outputPath).toBe("stdout");
+    expect(result.code).toContain("export function useReadERC20SampleName");
+    expect(result.code).toContain("export function useWriteERC20SampleApprove");
+  });
 });
