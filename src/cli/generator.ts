@@ -1,138 +1,175 @@
-import fs from 'node:fs';
-import path from 'node:path';
-import generate from '@babel/generator';
-import prettier from 'prettier';
-import { generateContractFileAst } from '../core/generation';
-import { ABIParseError, parseABI } from '../core/ingestion';
-import { buildIR } from '../core/ir';
+import fs from "node:fs";
+import path from "node:path";
+import generate from "@babel/generator";
+import prettier from "prettier";
+import {
+  generateContractFileAst,
+  generateIndexFileAst,
+} from "../core/generation";
+import { ABIParseError, parseABI } from "../core/ingestion";
+import { buildIR } from "../core/ir";
 
 export interface GenerateOptions {
   abiPath: string;
   outputPath?: string;
   contractName?: string;
-  generateConfigStub?: boolean;
 }
 
 export interface GenerateResult {
   outputPath: string;
-  configPath?: string;
   code: string;
+  generatedFiles?: string[];
 }
 
 /**
- * Auto-generates a sample wagmi config stub if one does not exist in the output directory.
+ * Formats TypeScript code string with Prettier, falling back cleanly to raw code on error.
  */
-export function ensureWagmiConfigStub(outputDir: string): string | undefined {
-  const configPath = path.join(outputDir, 'config.ts');
-  if (fs.existsSync(configPath)) {
-    return undefined;
+async function formatTypeScriptCode(rawCode: string): Promise<string> {
+  try {
+    return await prettier.format(rawCode, {
+      parser: "typescript",
+      singleQuote: true,
+      trailingComma: "es5",
+      printWidth: 100,
+    });
+  } catch {
+    return rawCode;
   }
-
-  const stubCode = `import { http, createConfig } from 'wagmi';
-import { mainnet, sepolia } from 'wagmi/chains';
-
-export const config = createConfig({
-  chains: [mainnet, sepolia],
-  transports: {
-    [mainnet.id]: http(),
-    [sepolia.id]: http(),
-  },
-});
-`;
-
-  fs.mkdirSync(outputDir, { recursive: true });
-  fs.writeFileSync(configPath, stubCode, 'utf-8');
-  return configPath;
 }
 
 /**
  * Derives a clean contract display name from an input file path (e.g. "./abis/ERC20.json" -> "ERC20").
  */
-export function deriveContractName(abiPath: string, customName?: string): string {
-  if (customName && customName.trim() !== '') {
+export function deriveContractName(
+  abiPath: string,
+  customName?: string,
+): string {
+  if (customName && customName.trim() !== "") {
     return customName.trim();
   }
 
   const baseName = path.basename(abiPath, path.extname(abiPath));
-  return baseName.replace(/[^a-zA-Z0-9_$]/g, '') || 'Contract';
+  return baseName.replace(/[^a-zA-Z0-9_$]/g, "") || "Contract";
 }
 
 /**
- * End-to-end generator function processing ABI file -> Ingestion -> IR -> AST -> Formatted TS File
+ * Helper to process a single JSON ABI file -> AST -> Formatted TS File
  */
-export async function generateHooksFromFile(options: GenerateOptions): Promise<GenerateResult> {
-  const absoluteAbiPath = path.resolve(process.cwd(), options.abiPath);
-
-  if (!fs.existsSync(absoluteAbiPath)) {
-    throw new Error(`ABI file not found at path: ${absoluteAbiPath}`);
-  }
-
-  // 1. Read input JSON
+async function processSingleAbiFile(
+  filePath: string,
+  outputFilePath: string,
+  customContractName?: string,
+): Promise<{ code: string; contractName: string }> {
   let fileContent: string;
   try {
-    fileContent = fs.readFileSync(absoluteAbiPath, 'utf-8');
+    fileContent = fs.readFileSync(filePath, "utf-8");
   } catch (err) {
-    throw new Error(`Failed to read ABI file: ${(err as Error).message}`);
+    throw new Error(
+      `Failed to read ABI file at ${filePath}: ${(err as Error).message}`,
+    );
   }
 
   let rawJson: unknown;
   try {
     rawJson = JSON.parse(fileContent);
   } catch (err) {
-    throw new ABIParseError(`Invalid JSON file content: ${(err as Error).message}`);
+    throw new ABIParseError(
+      `Invalid JSON in file ${filePath}: ${(err as Error).message}`,
+    );
   }
 
-  // 2. Ingestion ACL Pass
   const parsedAbi = parseABI(rawJson);
-
-  // 3. IR Pass
-  const contractName = deriveContractName(options.abiPath, options.contractName);
+  const contractName = deriveContractName(filePath, customContractName);
   const ir = buildIR(parsedAbi, contractName);
-
-  // 4. AST Generation Pass
   const astFile = generateContractFileAst(ir, parsedAbi);
-
-  // 5. Code Printing Pass
   const rawCode = generate(astFile).code;
+  const formattedCode = await formatTypeScriptCode(rawCode);
 
-  // 6. Prettier Formatting Pass
-  let formattedCode = rawCode;
-  try {
-    formattedCode = await prettier.format(rawCode, {
-      parser: 'typescript',
-      singleQuote: true,
-      trailingComma: 'es5',
-      printWidth: 100,
-    });
-  } catch (_prettierErr) {
-    // Fallback to raw generated code if prettier encounters an error
-    formattedCode = rawCode;
+  const outputDir = path.dirname(outputFilePath);
+  fs.mkdirSync(outputDir, { recursive: true });
+  fs.writeFileSync(outputFilePath, formattedCode, "utf-8");
+
+  return { code: formattedCode, contractName };
+}
+
+/**
+ * End-to-end generator processing ABI file/directory -> Ingestion -> IR -> AST -> Formatted TS Files
+ */
+export async function generateHooksFromFile(
+  options: GenerateOptions,
+): Promise<GenerateResult> {
+  const absoluteAbiPath = path.resolve(process.cwd(), options.abiPath);
+
+  if (!fs.existsSync(absoluteAbiPath)) {
+    throw new Error(`ABI path not found: ${absoluteAbiPath}`);
   }
 
-  // 7. Calculate Output Directory and File Path
+  const stat = fs.statSync(absoluteAbiPath);
+
+  if (stat.isDirectory()) {
+    const targetDir = options.outputPath
+      ? path.resolve(process.cwd(), options.outputPath)
+      : path.resolve(process.cwd(), "generated");
+
+    const entries = fs.readdirSync(absoluteAbiPath);
+    const jsonFiles = entries.filter((file) => file.endsWith(".json"));
+
+    if (jsonFiles.length === 0) {
+      throw new Error(
+        `No .json ABI files found in directory: ${absoluteAbiPath}`,
+      );
+    }
+
+    const generatedModules: string[] = [];
+    const generatedFiles: string[] = [];
+
+    for (const jsonFile of jsonFiles) {
+      const fullInputPath = path.join(absoluteAbiPath, jsonFile);
+      const contractName = deriveContractName(jsonFile);
+      const outputFilePath = path.join(targetDir, `${contractName}.ts`);
+
+      await processSingleAbiFile(fullInputPath, outputFilePath);
+      generatedModules.push(contractName);
+      generatedFiles.push(outputFilePath);
+    }
+
+    // Generate top-level index.ts re-exporting all modules
+    const indexAst = generateIndexFileAst(generatedModules);
+    const rawIndexCode = generate(indexAst).code;
+    const formattedIndexCode = await formatTypeScriptCode(rawIndexCode);
+    const indexPath = path.join(targetDir, "index.ts");
+
+    fs.writeFileSync(indexPath, formattedIndexCode, "utf-8");
+    generatedFiles.push(indexPath);
+
+    return {
+      outputPath: targetDir,
+      code: formattedIndexCode,
+      generatedFiles,
+    };
+  }
+
+  // Single file execution path
   const targetDir = options.outputPath
     ? path.resolve(process.cwd(), options.outputPath)
-    : path.resolve(process.cwd(), 'generated');
+    : path.resolve(process.cwd(), "generated");
 
-  const finalOutputPath = targetDir.endsWith('.ts')
+  const contractName = deriveContractName(
+    options.abiPath,
+    options.contractName,
+  );
+  const finalOutputPath = targetDir.endsWith(".ts")
     ? targetDir
     : path.join(targetDir, `${contractName}.ts`);
 
-  const outputDir = path.dirname(finalOutputPath);
-  fs.mkdirSync(outputDir, { recursive: true });
-
-  // 8. Write generated hooks file to disk
-  fs.writeFileSync(finalOutputPath, formattedCode, 'utf-8');
-
-  // 9. Optionally generate wagmi config stub
-  let configPath: string | undefined;
-  if (options.generateConfigStub !== false) {
-    configPath = ensureWagmiConfigStub(outputDir);
-  }
+  const { code } = await processSingleAbiFile(
+    absoluteAbiPath,
+    finalOutputPath,
+    options.contractName,
+  );
 
   return {
     outputPath: finalOutputPath,
-    configPath,
-    code: formattedCode,
+    code,
   };
 }
