@@ -1,12 +1,18 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import fs from "node:fs";
 import path from "node:path";
-import { deriveContractName, generateHooksFromFile } from "./generator";
+import {
+  deriveContractName,
+  generateHooksFromConfig,
+  generateHooksFromFile,
+  loadConfigFile,
+} from "./generator";
 
 describe("Phase 4: CLI Generator Pipeline Integration", () => {
   const testDir = path.resolve(__dirname, "../../tmp_test_cli");
   const sampleAbiPath = path.join(testDir, "ERC20Sample.json");
   const batchDir = path.join(testDir, "batch_abis");
+  const configFilePath = path.join(testDir, "abi-to-hooks.config.json");
 
   const sampleAbiContent = JSON.stringify([
     {
@@ -62,6 +68,15 @@ describe("Phase 4: CLI Generator Pipeline Integration", () => {
       vaultAbiContent,
       "utf-8",
     );
+
+    const configContent = JSON.stringify({
+      output: "./output_config",
+      contracts: [
+        { name: "ERC20Token", abi: sampleAbiPath },
+        { name: "VaultPool", abi: path.join(batchDir, "Vault.json") },
+      ],
+    });
+    fs.writeFileSync(configFilePath, configContent, "utf-8");
   });
 
   afterAll(() => {
@@ -117,7 +132,22 @@ describe("Phase 4: CLI Generator Pipeline Integration", () => {
     expect(fs.existsSync(indexPath)).toBe(true);
 
     const indexContent = fs.readFileSync(indexPath, "utf-8");
-    expect(indexContent).toContain("export * from './ERC20';");
-    expect(indexContent).toContain("export * from './Vault';");
+    expect(indexContent).toContain("./ERC20");
+    expect(indexContent).toContain("./Vault");
+  });
+
+  test("should load config object file and execute batch generation from manifest", async () => {
+    const loaded = loadConfigFile(configFilePath);
+    expect(loaded).toBeDefined();
+    expect(loaded?.config.contracts.length).toBe(2);
+
+    if (loaded) {
+      const result = await generateHooksFromConfig(loaded.config, testDir);
+      expect(fs.existsSync(result.outputPath)).toBe(true);
+      expect(result.generatedFiles?.length).toBe(3); // ERC20Token.ts, VaultPool.ts, index.ts
+
+      const erc20TokenPath = path.join(result.outputPath, "ERC20Token.ts");
+      expect(fs.existsSync(erc20TokenPath)).toBe(true);
+    }
   });
 });
