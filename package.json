@@ -73,7 +73,7 @@
     "access": "public"
   },
   "simple-git-hooks": {
-    "pre-commit": "npx biome check --staged --no-errors-on-unmatched",
+    "pre-commit": "npx biome check --staged ./src --no-errors-on-unmatched",
     "commit-msg": "npx commitlint --edit \"$1\""
   }
 }
