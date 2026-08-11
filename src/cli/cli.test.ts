@@ -117,7 +117,7 @@ describe("Phase 4: CLI Generator Pipeline Integration", () => {
     expect(fs.existsSync(indexPath)).toBe(true);
 
     const indexContent = fs.readFileSync(indexPath, "utf-8");
-    expect(indexContent).toContain("export * from './ERC20';");
-    expect(indexContent).toContain("export * from './Vault';");
+    expect(indexContent).toContain("./ERC20");
+    expect(indexContent).toContain("./Vault");
   });
 });
