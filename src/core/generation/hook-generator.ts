@@ -108,6 +108,10 @@ export function generateEventHookAst(
 /**
  * Generates an AST Node for a wagmi useSimulateContract hook.
  *
+ * Notes:
+ * - Hook name is derived from `fn.safeName` to ensure unique exported identifiers.
+ * - The emitted `functionName` uses `fn.originalName` (Solidity name); when there are overloaded signatures ensure callers supply the correct args/selector.
+ *
  * @param contractName Name of smart contract (e.g., "ERC20")
  * @param fn Normalized IRFunction definition
  * @param abiVarName Exported ABI constant name (e.g., "erc20Abi")
