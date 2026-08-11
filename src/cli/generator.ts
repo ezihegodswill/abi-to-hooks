@@ -13,6 +13,7 @@ export interface GenerateOptions {
   abiPath: string;
   outputPath?: string;
   contractName?: string;
+  stdout?: boolean;
 }
 
 export interface GenerateResult {
@@ -85,9 +86,11 @@ async function processSingleAbiFile(
   const rawCode = generate(astFile).code;
   const formattedCode = await formatTypeScriptCode(rawCode);
 
-  const outputDir = path.dirname(outputFilePath);
-  fs.mkdirSync(outputDir, { recursive: true });
-  fs.writeFileSync(outputFilePath, formattedCode, "utf-8");
+  if (outputFilePath !== "stdout") {
+    const outputDir = path.dirname(outputFilePath);
+    fs.mkdirSync(outputDir, { recursive: true });
+    fs.writeFileSync(outputFilePath, formattedCode, "utf-8");
+  }
 
   return { code: formattedCode, contractName };
 }
@@ -105,6 +108,10 @@ export async function generateHooksFromFile(
   }
 
   const stat = fs.statSync(absoluteAbiPath);
+
+  if (options.stdout && stat.isDirectory()) {
+    throw new Error("Stdout mode (--stdout) requires a single ABI file input.");
+  }
 
   if (stat.isDirectory()) {
     const targetDir = options.outputPath
@@ -158,9 +165,11 @@ export async function generateHooksFromFile(
     options.abiPath,
     options.contractName,
   );
-  const finalOutputPath = targetDir.endsWith(".ts")
-    ? targetDir
-    : path.join(targetDir, `${contractName}.ts`);
+  const finalOutputPath = options.stdout
+    ? "stdout"
+    : targetDir.endsWith(".ts")
+      ? targetDir
+      : path.join(targetDir, `${contractName}.ts`);
 
   const { code } = await processSingleAbiFile(
     absoluteAbiPath,
