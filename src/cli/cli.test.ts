@@ -1,7 +1,11 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import fs from "node:fs";
 import path from "node:path";
-import { deriveContractName, generateHooksFromFile } from "./generator";
+import {
+  deriveContractName,
+  generateHooksFromFile,
+  watchAbiPath,
+} from "./generator";
 
 describe("Phase 4: CLI Generator Pipeline Integration", () => {
   const testDir = path.resolve(__dirname, "../../tmp_test_cli");
@@ -119,5 +123,16 @@ describe("Phase 4: CLI Generator Pipeline Integration", () => {
     const indexContent = fs.readFileSync(indexPath, "utf-8");
     expect(indexContent).toContain("export * from './ERC20';");
     expect(indexContent).toContain("export * from './Vault';");
+  });
+
+  test("should instantiate watch mode listener on ABI file", async () => {
+    const outputDir = path.join(testDir, "output_watch");
+    const watcher = watchAbiPath({
+      abiPath: sampleAbiPath,
+      outputPath: outputDir,
+    });
+
+    expect(watcher).toBeDefined();
+    watcher.close();
   });
 });

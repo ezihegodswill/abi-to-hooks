@@ -173,3 +173,43 @@ export async function generateHooksFromFile(
     code,
   };
 }
+
+/**
+ * Watches an ABI file or directory for changes and triggers re-generation.
+ */
+export function watchAbiPath(
+  options: GenerateOptions,
+  onChange?: (result: GenerateResult) => void,
+): fs.FSWatcher {
+  const absolutePath = path.resolve(process.cwd(), options.abiPath);
+  let debounceTimer: ReturnType<typeof setTimeout> | undefined;
+
+  return fs.watch(absolutePath, { recursive: true }, (_eventType, filename) => {
+    if (filename && !filename.endsWith(".json")) {
+      try {
+        if (
+          fs.existsSync(absolutePath) &&
+          fs.statSync(absolutePath).isDirectory()
+        ) {
+          return;
+        }
+      } catch {
+        // file stat check fallback
+      }
+    }
+
+    if (debounceTimer) clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(async () => {
+      try {
+        const result = await generateHooksFromFile(options);
+        if (onChange) {
+          onChange(result);
+        }
+      } catch (err) {
+        console.error(
+          `\x1b[31m✖ [watch error]:\x1b[0m ${(err as Error).message}`,
+        );
+      }
+    }, 100);
+  });
+}
