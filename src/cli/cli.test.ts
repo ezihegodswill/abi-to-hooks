@@ -1,7 +1,11 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import fs from "node:fs";
 import path from "node:path";
-import { deriveContractName, generateHooksFromFile } from "./generator";
+import {
+  deriveContractName,
+  generateHooksFromFile,
+  runInteractiveWizard,
+} from "./generator";
 
 describe("Phase 4: CLI Generator Pipeline Integration", () => {
   const testDir = path.resolve(__dirname, "../../tmp_test_cli");
@@ -119,5 +123,10 @@ describe("Phase 4: CLI Generator Pipeline Integration", () => {
     const indexContent = fs.readFileSync(indexPath, "utf-8");
     expect(indexContent).toContain("export * from './ERC20';");
     expect(indexContent).toContain("export * from './Vault';");
+  });
+
+  test("should expose runInteractiveWizard function", () => {
+    expect(runInteractiveWizard).toBeDefined();
+    expect(typeof runInteractiveWizard).toBe("function");
   });
 });
