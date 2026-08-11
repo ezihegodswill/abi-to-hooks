@@ -25,8 +25,15 @@ program
     "-n, --name <contractName>",
     "Custom contract display name (for single file generation)",
   )
+  .option(
+    "-f, --force",
+    "Force hook regeneration bypassing SHA-256 content-hash cache",
+  )
   .action(
-    async (abiPath: string, options: { output?: string; name?: string }) => {
+    async (
+      abiPath: string,
+      options: { output?: string; name?: string; force?: boolean },
+    ) => {
       try {
         console.log(
           `\n\x1b[36m[abi-to-hooks]\x1b[0m Ingesting ABI from ${abiPath}...`,
@@ -36,11 +43,18 @@ program
           abiPath,
           outputPath: options.output,
           contractName: options.name,
+          force: options.force,
         });
 
-        console.log(
-          `\x1b[32m✔\x1b[0m Successfully generated React hooks at: \x1b[1m${result.outputPath}\x1b[0m`,
-        );
+        if (result.skipped) {
+          console.log(
+            `\x1b[33m⚡\x1b[0m Content hash unchanged. Skipped generation for: \x1b[1m${result.outputPath}\x1b[0m`,
+          );
+        } else {
+          console.log(
+            `\x1b[32m✔\x1b[0m Successfully generated React hooks at: \x1b[1m${result.outputPath}\x1b[0m`,
+          );
+        }
         if (result.generatedFiles && result.generatedFiles.length > 0) {
           console.log(
             `\x1b[32m✔\x1b[0m Generated ${result.generatedFiles.length} files in batch mode.`,

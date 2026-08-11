@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import generate from "@babel/generator";
@@ -13,12 +14,47 @@ export interface GenerateOptions {
   abiPath: string;
   outputPath?: string;
   contractName?: string;
+  force?: boolean;
 }
 
 export interface GenerateResult {
   outputPath: string;
   code: string;
   generatedFiles?: string[];
+  skipped?: boolean;
+}
+
+interface CacheStore {
+  [contractName: string]: string;
+}
+
+function getCacheFilePath(outputDir: string): string {
+  return path.join(outputDir, ".cache", "abi-to-hooks.json");
+}
+
+function loadCacheStore(cacheFilePath: string): CacheStore {
+  try {
+    if (fs.existsSync(cacheFilePath)) {
+      return JSON.parse(fs.readFileSync(cacheFilePath, "utf-8"));
+    }
+  } catch {
+    // fallback if unreadable
+  }
+  return {};
+}
+
+function saveCacheStore(cacheFilePath: string, store: CacheStore): void {
+  try {
+    const dir = path.dirname(cacheFilePath);
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(cacheFilePath, JSON.stringify(store, null, 2), "utf-8");
+  } catch {
+    // fallback if unwritable
+  }
+}
+
+function computeHash(content: string): string {
+  return crypto.createHash("sha256").update(content).digest("hex");
 }
 
 /**
@@ -53,13 +89,15 @@ export function deriveContractName(
 }
 
 /**
- * Helper to process a single JSON ABI file -> AST -> Formatted TS File
+ * Helper to process a single JSON ABI file -> AST -> Formatted TS File with caching
  */
 async function processSingleAbiFile(
   filePath: string,
   outputFilePath: string,
   customContractName?: string,
-): Promise<{ code: string; contractName: string }> {
+  cacheStore?: CacheStore,
+  force?: boolean,
+): Promise<{ code: string; contractName: string; skipped: boolean }> {
   let fileContent: string;
   try {
     fileContent = fs.readFileSync(filePath, "utf-8");
@@ -67,6 +105,19 @@ async function processSingleAbiFile(
     throw new Error(
       `Failed to read ABI file at ${filePath}: ${(err as Error).message}`,
     );
+  }
+
+  const contractName = deriveContractName(filePath, customContractName);
+  const fileHash = computeHash(fileContent);
+
+  if (
+    !force &&
+    cacheStore &&
+    cacheStore[contractName] === fileHash &&
+    fs.existsSync(outputFilePath)
+  ) {
+    const existingCode = fs.readFileSync(outputFilePath, "utf-8");
+    return { code: existingCode, contractName, skipped: true };
   }
 
   let rawJson: unknown;
@@ -79,7 +130,6 @@ async function processSingleAbiFile(
   }
 
   const parsedAbi = parseABI(rawJson);
-  const contractName = deriveContractName(filePath, customContractName);
   const ir = buildIR(parsedAbi, contractName);
   const astFile = generateContractFileAst(ir, parsedAbi);
   const rawCode = generate(astFile).code;
@@ -89,7 +139,11 @@ async function processSingleAbiFile(
   fs.mkdirSync(outputDir, { recursive: true });
   fs.writeFileSync(outputFilePath, formattedCode, "utf-8");
 
-  return { code: formattedCode, contractName };
+  if (cacheStore) {
+    cacheStore[contractName] = fileHash;
+  }
+
+  return { code: formattedCode, contractName, skipped: false };
 }
 
 /**
@@ -111,6 +165,9 @@ export async function generateHooksFromFile(
       ? path.resolve(process.cwd(), options.outputPath)
       : path.resolve(process.cwd(), "generated");
 
+    const cacheFilePath = getCacheFilePath(targetDir);
+    const cacheStore = loadCacheStore(cacheFilePath);
+
     const entries = fs.readdirSync(absoluteAbiPath);
     const jsonFiles = entries.filter((file) => file.endsWith(".json"));
 
@@ -122,30 +179,47 @@ export async function generateHooksFromFile(
 
     const generatedModules: string[] = [];
     const generatedFiles: string[] = [];
+    let allSkipped = true;
 
     for (const jsonFile of jsonFiles) {
       const fullInputPath = path.join(absoluteAbiPath, jsonFile);
       const contractName = deriveContractName(jsonFile);
       const outputFilePath = path.join(targetDir, `${contractName}.ts`);
 
-      await processSingleAbiFile(fullInputPath, outputFilePath);
+      const res = await processSingleAbiFile(
+        fullInputPath,
+        outputFilePath,
+        undefined,
+        cacheStore,
+        options.force,
+      );
+      if (!res.skipped) {
+        allSkipped = false;
+      }
       generatedModules.push(contractName);
       generatedFiles.push(outputFilePath);
     }
 
-    // Generate top-level index.ts re-exporting all modules
-    const indexAst = generateIndexFileAst(generatedModules);
-    const rawIndexCode = generate(indexAst).code;
-    const formattedIndexCode = await formatTypeScriptCode(rawIndexCode);
     const indexPath = path.join(targetDir, "index.ts");
+    let formattedIndexCode = "";
 
-    fs.writeFileSync(indexPath, formattedIndexCode, "utf-8");
+    if (!allSkipped || !fs.existsSync(indexPath) || options.force) {
+      const indexAst = generateIndexFileAst(generatedModules);
+      const rawIndexCode = generate(indexAst).code;
+      formattedIndexCode = await formatTypeScriptCode(rawIndexCode);
+      fs.writeFileSync(indexPath, formattedIndexCode, "utf-8");
+    } else {
+      formattedIndexCode = fs.readFileSync(indexPath, "utf-8");
+    }
+
     generatedFiles.push(indexPath);
+    saveCacheStore(cacheFilePath, cacheStore);
 
     return {
       outputPath: targetDir,
       code: formattedIndexCode,
       generatedFiles,
+      skipped: allSkipped,
     };
   }
 
@@ -162,14 +236,23 @@ export async function generateHooksFromFile(
     ? targetDir
     : path.join(targetDir, `${contractName}.ts`);
 
-  const { code } = await processSingleAbiFile(
+  const outputDir = path.dirname(finalOutputPath);
+  const cacheFilePath = getCacheFilePath(outputDir);
+  const cacheStore = loadCacheStore(cacheFilePath);
+
+  const res = await processSingleAbiFile(
     absoluteAbiPath,
     finalOutputPath,
     options.contractName,
+    cacheStore,
+    options.force,
   );
+
+  saveCacheStore(cacheFilePath, cacheStore);
 
   return {
     outputPath: finalOutputPath,
-    code,
+    code: res.code,
+    skipped: res.skipped,
   };
 }
