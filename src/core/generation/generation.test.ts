@@ -45,15 +45,69 @@ describe("Phase 3: AST Generation", () => {
     const outputCode = generate(astFile).code;
 
     expect(outputCode).toContain(
-      "import { useReadContract, useWriteContract, useWatchContractEvent",
+      "import { useReadContract, useWriteContract, useSimulateContract, useWatchContractEvent",
     );
     expect(outputCode).toContain("export const erc20Abi = [");
     expect(outputCode).toContain("as const;");
     expect(outputCode).toContain("export function useReadERC20BalanceOf");
     expect(outputCode).toContain("export function useWriteERC20Transfer");
+    expect(outputCode).toContain("export function useSimulateERC20Transfer");
     expect(outputCode).toContain("export function useWatchERC20Transfer");
 
     // Verify zero 'as any' exists in generated code output
     expect(outputCode).not.toContain("as any");
+  });
+
+  test("should generate distinct write and simulate hooks for overloaded write functions while preserving original functionName", () => {
+    const rawAbi = [
+      {
+        type: "function",
+        name: "transfer",
+        inputs: [
+          { name: "to", type: "address" },
+          { name: "amount", type: "uint256" },
+        ],
+        outputs: [{ name: "", type: "bool" }],
+        stateMutability: "nonpayable",
+      },
+      {
+        type: "function",
+        name: "transfer",
+        inputs: [
+          { name: "to", type: "address" },
+          { name: "amount", type: "uint256" },
+          { name: "data", type: "bytes" },
+        ],
+        outputs: [{ name: "", type: "bool" }],
+        stateMutability: "nonpayable",
+      },
+    ];
+
+    const parsedAbi = parseABI(rawAbi);
+    const ir = buildIR(parsedAbi, "Token");
+    const astFile = generateContractFileAst(ir, parsedAbi);
+    const outputCode = generate(astFile).code;
+
+    // Verify hook names derived from safeName
+    expect(outputCode).toContain(
+      "export function useWriteTokenTransferAddressUint256",
+    );
+    expect(outputCode).toContain(
+      "export function useSimulateTokenTransferAddressUint256",
+    );
+    expect(outputCode).toContain(
+      "export function useWriteTokenTransferAddressUint256Bytes",
+    );
+    expect(outputCode).toContain(
+      "export function useSimulateTokenTransferAddressUint256Bytes",
+    );
+
+    // Verify both simulate hooks pass originalName 'transfer' to functionName
+    expect(outputCode).toContain("functionName: 'transfer'");
+
+    // Verify hook definitions call useSimulateContract correctly
+    expect(outputCode).toContain(
+      "return useSimulateContract({\n    abi: tokenAbi,\n    functionName: 'transfer',\n    ...parameters\n  });",
+    );
   });
 });

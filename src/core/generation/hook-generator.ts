@@ -104,3 +104,43 @@ export function generateEventHookAst(
 
   return statement;
 }
+
+/**
+ * Generates an AST Node for a wagmi useSimulateContract hook.
+ *
+ * Notes:
+ * - Hook name is derived from `fn.safeName` to ensure unique exported identifiers.
+ * - The emitted `functionName` uses `fn.originalName` (Solidity name); when there are overloaded signatures ensure callers supply the correct args/selector.
+ *
+ * @param contractName Name of smart contract (e.g., "ERC20")
+ * @param fn Normalized IRFunction definition
+ * @param abiVarName Exported ABI constant name (e.g., "erc20Abi")
+ */
+export function generateSimulateHookAst(
+  contractName: string,
+  fn: IRFunction,
+  abiVarName: string,
+): t.ExportNamedDeclaration {
+  const hookName = `useSimulate${capitalize(contractName)}${capitalize(fn.safeName)}`;
+
+  const statement = template.statement.ast(
+    `
+    export function ${hookName}(
+      parameters?: UseSimulateContractParameters
+    ) {
+      return useSimulateContract({
+        abi: ${abiVarName},
+        functionName: '${fn.originalName}',
+        ...parameters,
+      });
+    }
+  `,
+    { plugins: ["typescript"] },
+  );
+
+  if (!t.isExportNamedDeclaration(statement)) {
+    throw new Error(`Failed to generate simulate hook AST for ${hookName}`);
+  }
+
+  return statement;
+}

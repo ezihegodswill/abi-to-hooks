@@ -3,6 +3,7 @@ import type { IRContract } from "../ir/types";
 import {
   generateEventHookAst,
   generateReadHookAst,
+  generateSimulateHookAst,
   generateWriteHookAst,
 } from "./hook-generator";
 import { buildAbiExportAst, importsAst } from "./templates";
@@ -51,10 +52,16 @@ export function generateContractFileAst(
     bodyNodes.push(hookAst);
   }
 
-  // 4. Generate Write Hooks
+  // 4. Generate Write Hooks & Simulation Hooks
   for (const writeFn of ir.writeFunctions) {
-    const hookAst = generateWriteHookAst(ir.name, writeFn);
-    bodyNodes.push(hookAst);
+    const writeHookAst = generateWriteHookAst(ir.name, writeFn);
+    const simulateHookAst = generateSimulateHookAst(
+      ir.name,
+      writeFn,
+      abiVarName,
+    );
+    bodyNodes.push(writeHookAst);
+    bodyNodes.push(simulateHookAst);
   }
 
   // 5. Generate Event Hooks
